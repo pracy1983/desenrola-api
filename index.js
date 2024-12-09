@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { Asaas } from 'asaas-node';
+import { Asaas } from '@asaas/api';
 
 dotenv.config();
 
@@ -13,7 +13,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
-const asaas = new Asaas(process.env.ASAAS_API_KEY);
+const asaas = new Asaas({
+  apiKey: process.env.ASAAS_API_KEY,
+  sandbox: true
+});
 
 // Criar cliente
 app.post('/api/asaas/customers', async (req, res) => {
