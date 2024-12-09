@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { Asaas } from '@asaas/api';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -13,24 +13,26 @@ app.use(cors({
 }));
 app.use(express.json());
 
-const asaas = new Asaas({
-  apiKey: process.env.ASAAS_API_KEY,
-  sandbox: true
+const asaasApi = axios.create({
+  baseURL: 'https://sandbox.asaas.com/api/v3',
+  headers: {
+    'access_token': process.env.ASAAS_API_KEY
+  }
 });
 
 // Criar cliente
 app.post('/api/asaas/customers', async (req, res) => {
   try {
     const { name, email, cpfCnpj } = req.body;
-    const customer = await asaas.customers.create({
+    const response = await asaasApi.post('/customers', {
       name,
       email,
       cpfCnpj
     });
-    res.json(customer);
+    res.json(response.data);
   } catch (error) {
-    console.error('Error creating customer:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error creating customer:', error.response?.data || error.message);
+    res.status(500).json({ error: error.response?.data || error.message });
   }
 });
 
@@ -41,16 +43,19 @@ app.post('/api/asaas/subscriptions', async (req, res) => {
     
     // Buscar ou criar cliente
     let customer;
-    const customers = await asaas.customers.list({ email });
+    const customersResponse = await asaasApi.get('/customers', {
+      params: { email }
+    });
     
-    if (customers.data && customers.data.length > 0) {
-      customer = customers.data[0];
+    if (customersResponse.data.data && customersResponse.data.data.length > 0) {
+      customer = customersResponse.data.data[0];
     } else {
-      customer = await asaas.customers.create({ email });
+      const newCustomer = await asaasApi.post('/customers', { email });
+      customer = newCustomer.data;
     }
 
     // Criar assinatura
-    const subscription = await asaas.subscriptions.create({
+    const subscription = await asaasApi.post('/subscriptions', {
       customer: customer.id,
       billingType: 'CREDIT_CARD',
       value: planId === 'weekly' ? 8.99 : 34.99,
@@ -59,10 +64,10 @@ app.post('/api/asaas/subscriptions', async (req, res) => {
       description: `Plano ${planId === 'weekly' ? 'Semanal' : 'Mensal'} Dr. Desenrola`
     });
 
-    res.json(subscription);
+    res.json(subscription.data);
   } catch (error) {
-    console.error('Error creating subscription:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error creating subscription:', error.response?.data || error.message);
+    res.status(500).json({ error: error.response?.data || error.message });
   }
 });
 
